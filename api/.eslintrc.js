@@ -10,5 +10,6 @@ module.exports = {
         'quote-props': 'off',
         'object-curly-newline': 'off',
         'no-restricted-syntax': 'off',
+        'import/no-extraneous-dependencies': 'off',
     },
 };
