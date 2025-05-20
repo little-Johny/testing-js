@@ -1,41 +1,57 @@
 const request = require('supertest');
 
-const mockGetAll = jest.fn();
+const { MongoClient } = require('mongodb');
 const createApp = require('../src/app');
-const { generateManyBooks } = require('../src/fakes/book.fake');
+const { config } = require('../src/config');
 
-jest.mock('../src/lib/mongo.lib.js', () => jest.fn().mockImplementation(() => ({
-    getAll: mockGetAll,
-    create: () => {},
-})));
+const DB_NAME = config.dbName;
+const MONGO_URI = config.dbUrl;
 
 describe('Test for book endpoints', () => {
     let app = null;
     let server = null;
+    let database = null;
 
-    beforeAll(() => {
+    beforeAll(async () => {
         app = createApp();
         server = app.listen(3001);
+        const client = new MongoClient(MONGO_URI, {
+            useNewUrlParser: true,
+            useUnifiedTopology: true,
+        });
+        await client.connect();
+        database = client.db(DB_NAME);
     });
 
     describe('Test for [GET] /api/v1/books', () => {
-        test('should return books', () => {
+        test('should return books', async () => {
             // Arrange
-            const fakeBooks = generateManyBooks(3);
-            mockGetAll.mockResolvedValue(fakeBooks);
-
+            const seedData = await database.collection('books').insertMany([
+                {
+                    name: 'Book 1',
+                    year: 1999,
+                    author: 'Johny',
+                },
+                {
+                    name: 'Book 2',
+                    year: 1989,
+                    author: 'Johnycito',
+                },
+            ]);
+            console.log(seedData);
             // Act
             return request(app)
                 .get('/api/v1/books').expect(200)
                 .then(({ body }) => {
                     console.log(body);
                     // Assert
-                    expect(body.length).toEqual(3);
+                    expect(body.length).toEqual(seedData.insertedCount);
                 });
         });
     });
 
     afterAll(async () => {
+        await database.dropDatabase();
         await server.close();
     });
 });
